@@ -1,0 +1,42 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "启动 Unreal Editor (无调试)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "F:/UnrealEngine-release/UnrealEngine/Engine/Binaries/Win64/UnrealEditor.exe",
+            "args": [
+                "${workspaceFolder}/FlowSolo.uproject"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal",
+            "preLaunchTask": null
+        },
+        {
+            "name": "附加到 Unreal Editor",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}",
+            "symbolSearchPath": "${workspaceFolder}/Binaries/Win64;F:/UnrealEngine-release/UnrealEngine/Engine/Binaries/Win64"
+        },
+        {
+            "name": "启动并调试 Unreal Editor (C++)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "F:/UnrealEngine-release/UnrealEngine/Engine/Binaries/Win64/UnrealEditor.exe",
+            "args": [
+                "${workspaceFolder}/FlowSolo.uproject",
+                "-debug"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal",
+            "symbolSearchPath": "${workspaceFolder}/Binaries/Win64;F:/UnrealEngine-release/UnrealEngine/Engine/Binaries/Win64",
+            "preLaunchTask": "编译项目"
+        }
+    ]
+}

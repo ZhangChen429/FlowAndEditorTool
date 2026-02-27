@@ -1,0 +1,206 @@
+@startuml EventListener_ClassDiagram
+
+!define CORE_COLOR #E1F5FE
+!define CONDITION_COLOR #FFF3E0
+!define NODE_COLOR #F1F8E9
+
+title EventListener 机制类图
+
+package "WaitContinueSystem" {
+
+    ' ============ 核心枚举 ============
+    enum ENodeResult {
+        LeaveNode
+        StayInNode
+    }
+
+    enum EConditionState {
+        Unknown = -1
+        False = 0
+        True = 1
+    }
+
+    ' ============ 执行上下文 ============
+    class FExecutionContext CORE_COLOR {
+        - CriticalSection : FCriticalSection
+        - Listeners : TMap<FGuid, TSharedPtr<FEventListener>>
+        --
+        + RegisterListener(NodeId : FGuid, Listener : TSharedPtr<FEventListener>) : void
+        + UnregisterListener(NodeId : FGuid) : void
+        + FindListener(NodeId : FGuid) : FEventListener*
+        + NotifyEvent(NodeId : FGuid) : void
+        + ClearAllListeners() : void
+        --
+        <b>性能优化：</b>
+        • FScopeLock 最小粒度锁
+        • TMap 哈希表 O(1) 查找
+        • 智能指针自动管理
+    }
+
+    ' ============ 事件监听器 ============
+    class FEventListener CORE_COLOR {
+        # bFulfilled : FThreadSafeBool
+        # bInitialized : FThreadSafeBool
+        # OnFulfilledCallback : TFunction<void()>
+        --
+        + <<virtual>> OnCreate(Context : FExecutionContext&) : void
+        + <<virtual>> OnDestroy(Context : FExecutionContext&) : void
+        + <<virtual>> OnEventTriggered() : void
+        + IsFulfilled() : bool
+        + SetFulfilled(bInFulfilled : bool) : void
+        + SetOnFulfilledCallback(Callback : TFunction<void()>) : void
+        + IsInitialized() : bool
+        --
+        <b>性能优化：</b>
+        • FThreadSafeBool 原子操作（无锁读取）
+        • Callback 模式避免轮询
+    }
+
+    class FTimeEventListener CORE_COLOR {
+        - DelaySeconds : float
+        - StartTime : double
+        --
+        + FTimeEventListener(InDelaySeconds : float)
+        + Update() : void
+        + GetRemainingTime() : float
+        --
+        <b>实现细节：</b>
+        • FPlatformTime::Seconds() 高精度计时
+        • Update() 检查时间是否到期
+    }
+
+    ' ============ 条件接口 ============
+    interface ICondition CONDITION_COLOR {
+        + {abstract} CreateEventListener(Context : FExecutionContext&) : TSharedPtr<FEventListener>
+        + {abstract} IsFulfilled(Context : FExecutionContext&) : bool
+        + {abstract} CheckImmediately(Context : FExecutionContext&) : bool
+        + {abstract} GetFriendlyName() : FString
+    }
+
+    class FBaseCondition CONDITION_COLOR {
+        # NodeId : FGuid
+        --
+        + FBaseCondition(InNodeId : FGuid)
+        + <<virtual>> CreateEventListener(Context : FExecutionContext&) : TSharedPtr<FEventListener>
+        + <<virtual>> IsFulfilled(Context : FExecutionContext&) : bool
+        + <<virtual>> CheckImmediately(Context : FExecutionContext&) : bool
+        + <<virtual>> GetFriendlyName() : FString
+        + GetNodeId() : FGuid
+        --
+        <b>双检查机制：</b>
+        1. 先查 Listener 状态
+        2. 无 Listener 则立即检查
+    }
+
+    class FTimeCondition CONDITION_COLOR {
+        - DelaySeconds : float
+        --
+        + FTimeCondition(InNodeId : FGuid, InDelaySeconds : float)
+        + CreateEventListener(Context : FExecutionContext&) : TSharedPtr<FEventListener>
+        + CheckImmediately(Context : FExecutionContext&) : bool
+        + GetFriendlyName() : FString
+        + GetDelaySeconds() : float
+    }
+
+    class FCustomCondition CONDITION_COLOR {
+        - CheckFunction : TFunction<bool()>
+        --
+        + FCustomCondition(InNodeId : FGuid, InCheckFunc : TFunction<bool()>)
+        + CreateEventListener(Context : FExecutionContext&) : TSharedPtr<FEventListener>
+        + CheckImmediately(Context : FExecutionContext&) : bool
+        + GetFriendlyName() : FString
+    }
+
+    ' ============ 继承关系 ============
+    FEventListener <|-- FTimeEventListener
+    ICondition <|.. FBaseCondition
+    FBaseCondition <|-- FTimeCondition
+    FBaseCondition <|-- FCustomCondition
+
+    ' ============ 关联关系 ============
+    FExecutionContext o-- "0..*" FEventListener : manages >
+    FBaseCondition ..> FEventListener : creates >
+    FTimeCondition ..> FTimeEventListener : creates >
+
+    ' ============ 依赖关系 ============
+    FEventListener ..> FExecutionContext : uses
+    ICondition ..> FExecutionContext : uses
+}
+
+package "FlowFactEditor" {
+
+    enum EWaitConditionType NODE_COLOR {
+        Time
+        Custom
+    }
+
+    class UFlowNode_WaitContinue NODE_COLOR {
+        - ConditionType : EWaitConditionType
+        - DelaySeconds : float
+        - ExecutionContext : FExecutionContext
+        - CurrentCondition : TSharedPtr<ICondition>
+        - UpdateTimerHandle : FTimerHandle
+        --
+        # InitializeInstance() : void
+        # ExecuteInput(PinName : FName) : void
+        # Cleanup() : void
+        - CheckCondition() : void
+        - CreateCondition() : TSharedPtr<ICondition>
+        # GetNodeDescription() : FString
+        # GetStatusString() : FString
+        --
+        <b>执行流程：</b>
+        1. ExecuteInput() - 创建条件和监听器
+        2. CheckCondition() - 定时检查（0.1s）
+        3. TriggerFirstOutput() - 满足后触发
+        4. Cleanup() - 清理资源
+    }
+
+    ' ============ 使用关系 ============
+    UFlowNode_WaitContinue *-- FExecutionContext : owns
+    UFlowNode_WaitContinue o-- ICondition : uses
+    UFlowNode_WaitContinue ..> EWaitConditionType : uses
+}
+
+' ============ 跨包依赖 ============
+UFlowNode_WaitContinue ..> FTimeCondition : creates
+UFlowNode_WaitContinue ..> FCustomCondition : creates
+
+' ============ 注释说明 ============
+note right of FExecutionContext
+  <b>线程安全管理器</b>
+  • 使用 FCriticalSection 保护 TMap
+  • 支持多线程注册/查找监听器
+  • NotifyEvent() 从外部触发事件
+end note
+
+note right of FEventListener
+  <b>监听器基类</b>
+  • 原子布尔标记（无锁读取）
+  • 回调模式（事件驱动）
+  • 生命周期管理（OnCreate/OnDestroy）
+end note
+
+note bottom of ICondition
+  <b>条件接口</b>
+  • CreateEventListener() - 工厂方法
+  • IsFulfilled() - 双检查（Listener + Immediate）
+  • 支持扩展（Fact、Distance、Trigger 等）
+end note
+
+note bottom of UFlowNode_WaitContinue
+  <b>Flow 节点实现</b>
+  执行流程：
+  1. 创建 Condition（Time/Custom）
+  2. 创建对应 EventListener
+  3. 注册到 ExecutionContext
+  4. 启动 0.1s Timer 轮询
+  5. 满足条件后 TriggerOutput
+
+  <b>性能优化：</b>
+  • 立即检查避免启动 Timer
+  • 100ms 轮询（而非每帧）
+  • Cleanup 时清理 Timer
+end note
+
+@enduml

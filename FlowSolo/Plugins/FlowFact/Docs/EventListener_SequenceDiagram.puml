@@ -1,0 +1,170 @@
+@startuml EventListener_SequenceDiagram
+
+title EventListener 运行时序列图
+
+actor User
+participant "UFlowNode_WaitContinue" as Node
+participant "FExecutionContext" as Context
+participant "FTimeCondition" as Condition
+participant "FTimeEventListener" as Listener
+participant "TimerManager" as Timer
+
+== 1. 节点执行初始化 ==
+
+User -> Node : ExecuteInput("In")
+activate Node
+
+Node -> Node : CreateCondition()
+create Condition
+Node -> Condition : new FTimeCondition(NodeGuid, 3.0f)
+activate Condition
+
+Node -> Condition : IsFulfilled()
+Condition -> Context : FindListener(NodeGuid)
+activate Context
+Context --> Condition : nullptr (未注册)
+deactivate Context
+Condition -> Condition : CheckImmediately()
+Condition --> Node : false (时间条件无法立即满足)
+deactivate Condition
+
+== 2. 创建并注册监听器 ==
+
+Node -> Condition : CreateEventListener(Context)
+activate Condition
+create Listener
+Condition -> Listener : new FTimeEventListener(3.0f)
+activate Listener
+Listener -> Listener : StartTime = FPlatformTime::Seconds()
+note right: 记录开始时间（性能优化：高精度计时）
+Listener --> Condition : TSharedPtr<FTimeEventListener>
+deactivate Listener
+deactivate Condition
+
+Node -> Listener : OnCreate(Context)
+activate Listener
+Listener -> Listener : bInitialized = true
+deactivate Listener
+
+Node -> Context : RegisterListener(NodeGuid, Listener)
+activate Context
+Context -> Context : FScopeLock(&CriticalSection)
+note right: 性能优化：最小粒度锁
+Context -> Context : Listeners.Add(NodeGuid, Listener)
+Context --> Node : void
+deactivate Context
+
+== 3. 启动定时轮询 ==
+
+Node -> Timer : SetTimer(CheckCondition, 0.1f, true)
+activate Timer
+note right: 性能优化：100ms 轮询（10 Hz），而非每帧（60 Hz）
+Timer --> Node : TimerHandle
+deactivate Timer
+
+deactivate Node
+
+== 4. 定时检查循环 (每 0.1 秒) ==
+
+loop 每 0.1 秒
+    Timer -> Node : CheckCondition()
+    activate Node
+
+    Node -> Context : FindListener(NodeGuid)
+    activate Context
+    Context -> Context : FScopeLock(&CriticalSection)
+    Context --> Node : Listener*
+    deactivate Context
+
+    Node -> Listener : Update()
+    activate Listener
+    Listener -> Listener : Elapsed = CurrentTime - StartTime
+    alt Elapsed >= DelaySeconds
+        Listener -> Listener : SetFulfilled(true)
+        activate Listener
+        Listener -> Listener : bFulfilled.AtomicSet(true)
+        note right: 性能优化：原子操作，无需加锁
+        alt OnFulfilledCallback 存在
+            Listener -> Listener : OnFulfilledCallback()
+            note right: 回调触发（可选）
+        end
+        deactivate Listener
+    end
+    deactivate Listener
+
+    Node -> Condition : IsFulfilled(Context)
+    activate Condition
+    Condition -> Context : FindListener(NodeGuid)
+    activate Context
+    Context --> Condition : Listener*
+    deactivate Context
+    Condition -> Listener : IsFulfilled()
+    activate Listener
+    Listener --> Condition : bFulfilled (原子读取)
+    note right: 性能优化：无锁读取
+    deactivate Listener
+
+    alt 条件满足
+        Condition --> Node : true
+        deactivate Condition
+
+        == 5. 条件满足，触发输出 ==
+
+        Node -> Timer : ClearTimer(UpdateTimerHandle)
+        activate Timer
+        Timer --> Node : void
+        deactivate Timer
+
+        Node -> Node : TriggerFirstOutput(true)
+        note right: 触发 Flow 输出 Pin
+
+        deactivate Node
+    else 条件未满足
+        Condition --> Node : false
+        deactivate Condition
+        deactivate Node
+    end
+end
+
+== 6. 清理阶段 ==
+
+User -> Node : Cleanup()
+activate Node
+
+Node -> Timer : ClearTimer(UpdateTimerHandle)
+activate Timer
+Timer --> Node : void
+deactivate Timer
+
+Node -> Context : UnregisterListener(NodeGuid)
+activate Context
+Context -> Context : FScopeLock(&CriticalSection)
+Context -> Context : Listeners.Remove(NodeGuid)
+note right: 性能优化：智能指针自动释放
+Context --> Node : void
+deactivate Context
+
+Node -> Listener : OnDestroy(Context)
+activate Listener
+Listener -> Listener : bInitialized = false
+deactivate Listener
+
+destroy Listener
+destroy Condition
+
+deactivate Node
+
+== 性能优化总结 ==
+
+note over Node, Timer
+  <b>性能优化点：</b>
+  1. 原子操作 - FThreadSafeBool 无锁读取（~1-2ns）
+  2. 哈希查找 - TMap O(1) 查找（~10-20ns）
+  3. 最小锁粒度 - FScopeLock 只锁 TMap 操作
+  4. 定时轮询 - 0.1s 轮询（10 Hz）vs 每帧（60 Hz）→ 6倍性能提升
+  5. 立即检查 - 避免启动不必要的 Timer
+  6. 智能指针 - 自动内存管理，无需手动清理
+  7. 回调模式 - 事件驱动，避免无效轮询
+end note
+
+@enduml

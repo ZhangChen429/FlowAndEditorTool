@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "TouchProperty",
+	"Description": "",
+	"Category": "Other",
+	"CreatedBy": "Jeason",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "TouchProperty",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],"Resources": [
+	{
+		"Path": "Resources/Icon.png",
+		"Name": "Icon"
+	}]
+}

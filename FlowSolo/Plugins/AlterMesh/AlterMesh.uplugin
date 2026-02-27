@@ -1,0 +1,52 @@
+{
+	"FileVersion": 3,
+	"Version": 13,
+	"VersionName": "2.8.0",
+	"FriendlyName": "AlterMesh",
+	"Description": "Use geometry nodes inside UnrealEngine",
+	"Category": "ProceduralGeneration",
+	"CreatedBy": "Takain",
+	"CreatedByURL": "https://altermesh.com",
+	"DocsURL": "https://altermesh.com/docs",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/ad8033f7b86e4598b121736533da7546",
+	"SupportURL": "https://discord.gg/kdUW3w6taQ",
+	"EngineVersion": "5.5.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "AlterMesh",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "AlterMeshRendering",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "AlterMeshEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
+			"Name": "GeometryCache",
+			"Enabled": true
+		}
+	]
+}

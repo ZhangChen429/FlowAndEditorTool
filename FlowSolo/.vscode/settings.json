@@ -1,0 +1,26 @@
+{
+    "files.associations": {
+        "*.uproject": "json",
+        "*.uplugin": "json",
+        "*.target.cs": "csharp"
+    },
+    "C_Cpp.default.intelliSenseMode": "windows-msvc-x64",
+    "C_Cpp.default.compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.40.33807/bin/Hostx64/x64/cl.exe",
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "F:/UnrealEngine-release/UnrealEngine/Engine/Source/**",
+        "F:/UnrealEngine-release/UnrealEngine/Engine/Plugins/**"
+    ],
+    "files.exclude": {
+        "**/Binaries": true,
+        "**/Intermediate": true,
+        "**/Saved": true,
+        "**/DerivedDataCache": true
+    },
+    "editor.fontSize": 14,
+    "editor.fontFamily": "Consolas, 'Courier New', monospace",
+    "terminal.integrated.fontSize": 13,
+    "editor.fontWeight": "normal"
+}

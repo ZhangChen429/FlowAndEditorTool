@@ -1,0 +1,65 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "编译项目",
+            "type": "shell",
+            "command": "F:/UnrealEngine-release/UnrealEngine/Engine/Build/BatchFiles/Build.bat",
+            "args": [
+                "FlowSoloEditor",
+                "Win64",
+                "Development",
+                "${workspaceFolder}/FlowSolo.uproject",
+                "-WaitMutex",
+                "-FromMsBuild"
+            ],
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "生成项目文件",
+            "type": "shell",
+            "command": "F:/UnrealEngine-release/UnrealEngine/Engine/Build/BatchFiles/GenerateProjectFiles.bat",
+            "args": [
+                "${workspaceFolder}/FlowSolo.uproject",
+                "-Game",
+                "-Engine"
+            ],
+            "problemMatcher": [],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "清理构建",
+            "type": "shell",
+            "command": "F:/UnrealEngine-release/UnrealEngine/Engine/Build/BatchFiles/Build.bat",
+            "args": [
+                "FlowSoloEditor",
+                "Win64",
+                "Development",
+                "${workspaceFolder}/FlowSolo.uproject",
+                "-Clean"
+            ],
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}
