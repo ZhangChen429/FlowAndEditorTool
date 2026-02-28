@@ -14,9 +14,9 @@ class ALTERMESH_API UAlterMeshGeometryTransform : public UAlterMeshGeometryBase
 {
 	GENERATED_BODY()
 public:
-
+#if WITH_EDITOR
 	virtual void OnDuplicate(UObject* NewOuter) override;
-	
+#endif
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

@@ -12,9 +12,10 @@ UFlowNode_CinematicPlaySequence::UFlowNode_CinematicPlaySequence()
 
 	// ✅ KEY: Restrict this node to only work in InteractionCinematicFlowAsset
 	// This makes sense because playing sequences is specifically a cinematic operation
+#if WITH_EDITORONLY_DATA
 	AllowedAssetClasses.Empty();
 	AllowedAssetClasses.Add(UInteractionCinematicFlowAsset::StaticClass());
-
+#endif
 	InputPins = {TEXT("Play")};
 	OutputPins = {TEXT("Started"), TEXT("Completed"), TEXT("Failed")};
 }

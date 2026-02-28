@@ -13,9 +13,10 @@ UFlowNode_CinematicSpawnActor::UFlowNode_CinematicSpawnActor()
 
 	// ✅ KEY: Restrict this node to only work in InteractionCinematicFlowAsset
 	// This node will NOT appear in the palette of regular FlowAssets
+#if WITH_EDITORONLY_DATA
 	AllowedAssetClasses.Empty();
 	AllowedAssetClasses.Add(UInteractionCinematicFlowAsset::StaticClass());
-
+#endif
 	InputPins = {TEXT("In")};
 	OutputPins = {TEXT("Out"), TEXT("Failed")};
 }

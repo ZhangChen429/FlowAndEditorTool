@@ -26,6 +26,7 @@ void UAlterMeshGeometryTransform::PostEditChangeProperty(FPropertyChangedEvent& 
 }
 #endif
 
+
 void UAlterMeshGeometryTransform::Initialize(AActor* OwnerActor)
 {
 	Super::Initialize(OwnerActor);

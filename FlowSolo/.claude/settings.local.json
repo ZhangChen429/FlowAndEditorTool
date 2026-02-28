@@ -8,6 +8,9 @@
       "Bash(mkdir:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "D:\\AppSoft\\Sy2077\\2077\\2077\\CDPR2077\\dev"
+    ]
   }
 }
