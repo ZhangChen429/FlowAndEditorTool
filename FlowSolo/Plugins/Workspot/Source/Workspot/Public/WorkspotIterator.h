@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "WorkspotEntry.h"
 #include "WorkspotTypes.h"
 
 class UWorkspotExitAnim;
 class UWorkspotEntryAnim;
 class UWorkspotEntry;
 class UWorkspotAnimClip;
+class UWorkspotPause;
 class UWorkspotSequence;
 class UWorkspotRandomList;
 class UWorkspotSelector;
@@ -119,9 +121,26 @@ private:
 };
 
 /**
- * Iterator for Sequence (container node)
- * Plays children in order
+ * Iterator for Pause (leaf node)
+ * ⭐ 2077 Feature: Plays parent Sequence's idle animation during pause
  */
+class WORKSPOT_API FPauseIterator : public FWorkspotIterator
+{
+public:
+	explicit FPauseIterator(const UWorkspotPause* InPause);
+
+	virtual bool Next(FWorkspotContext& Context) override;
+	virtual bool GetData(FWorkspotEntryData& OutData) const override;
+	virtual void Reset() override;
+	virtual const TCHAR* GetTypeName() const override { return TEXT("Pause"); }
+	virtual FString GetDetailString() const override;
+
+private:
+	const UWorkspotPause* Pause;
+	float ActualPauseDuration;
+	bool bHasPlayed;
+};
+
 class WORKSPOT_API FSequenceIterator : public FWorkspotIterator
 {
 public:
@@ -139,12 +158,19 @@ private:
 	int32 CurrentIndex;
 	TSharedPtr<FWorkspotIterator> ChildIterator;
 	int32 LoopCount;
+
+	
+	bool bPlayingIdleLoop;           // Currently playing idle loop animation
+	FWorkspotEntryData IdleLoopData; // Cached idle loop data
+
+	
+	void PrepareIdleLoopData();
+
+
+	bool ShouldInjectIdleForChild(const FWorkspotEntryData& ChildData) const;
 };
 
-/**
- * Iterator for RandomList (container node)
- * Randomly selects children based on weights
- */
+
 class WORKSPOT_API FRandomListIterator : public FWorkspotIterator
 {
 public:
@@ -169,10 +195,7 @@ private:
 	int32 ChooseWeightedRandom(const TArray<float>& Weights, FRandomStream& Random) const;
 };
 
-/**
- * Iterator for Selector (container node)
- * ⭐ Core feature: automatic idle transition insertion
- */
+
 class WORKSPOT_API FSelectorIterator : public FWorkspotIterator
 {
 public:

@@ -8,7 +8,7 @@
 #include "BTTask_MoveToAndUseWorkspot.generated.h"
 
 class UWorkspotInstance;
-
+DECLARE_DELEGATE_RetVal(bool,FMyBookDel)
 /**
  * BTTask: Move to SmartObject and use Workspot
  *
@@ -39,7 +39,7 @@ protected:
 	/** SmartObject to use (can be set via blackboard or by tag) */
 	UPROPERTY(EditAnywhere, Category = "SmartObject")
 	FBlackboardKeySelector SmartObjectActorKey;
-
+	FMyBookDel MyBoolDelegate;
 	/** If set, will search for SmartObject with this tag */
 	UPROPERTY(EditAnywhere, Category = "SmartObject")
 	FGameplayTag SmartObjectTag;
@@ -55,6 +55,7 @@ protected:
 	/** If true, will stop AI movement while using workspot */
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	bool bStopMovementOnUse = true;
+
 
 	/** If true, will release slot when workspot completes */
 	UPROPERTY(EditAnywhere, Category = "SmartObject")

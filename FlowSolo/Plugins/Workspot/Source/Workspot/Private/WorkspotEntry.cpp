@@ -95,6 +95,42 @@ TSharedPtr<FWorkspotIterator> UWorkspotExitAnim::CreateIterator(FWorkspotContext
 }
 
 //////////////////////////////////////////////////////////////////////////
+// UWorkspotPause (⭐ 2077 Feature)
+//////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FWorkspotIterator> UWorkspotPause::CreateIterator(FWorkspotContext& Context) const
+{
+	return MakeShared<FPauseIterator>(this);
+}
+
+#if WITH_EDITOR
+EDataValidationResult UWorkspotPause::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+
+	if (PauseDuration.X < 0.0f || PauseDuration.Y < 0.0f)
+	{
+		ValidationErrors.Add(FText::FromString(TEXT("Pause duration cannot be negative")));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (PauseDuration.X > PauseDuration.Y)
+	{
+		ValidationErrors.Add(FText::FromString(TEXT("Pause min duration cannot exceed max duration")));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (!bUseParentIdle && !CustomIdleMontage)
+	{
+		ValidationErrors.Add(FText::FromString(TEXT("Pause has bUseParentIdle=false but no CustomIdleMontage assigned")));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	return Result;
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 // UWorkspotSequence
 //////////////////////////////////////////////////////////////////////////
 

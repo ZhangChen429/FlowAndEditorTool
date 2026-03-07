@@ -146,12 +146,57 @@ public:
 	virtual TSharedPtr<FWorkspotIterator> CreateIterator(FWorkspotContext& Context) const override;
 };
 
+/**
+ * Pause - Holds current idle animation for a duration
+ * ⭐ 2077 Feature: Plays parent Sequence's IdleLoopMontage during pause
+ */
+UCLASS(DisplayName = "Pause")
+class WORKSPOT_API UWorkspotPause : public UWorkspotEntry
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Pause duration range (min, max) in seconds
+	 * A random duration will be chosen between these values
+	 */
+	UPROPERTY(EditAnywhere, Category = "Pause", meta = (ClampMin = "0.1", ClampMax = "60.0"))
+	FVector2D PauseDuration = FVector2D(0.5f, 1.5f);
+
+	/**
+	 * Whether to use parent Sequence's IdleLoopMontage during pause
+	 * If true: Plays parent's idle animation (e.g., sit_idle_loop)
+	 * If false: Uses CustomIdleMontage instead
+	 */
+	UPROPERTY(EditAnywhere, Category = "Pause")
+	bool bUseParentIdle = true;
+
+	/**
+	 * Custom idle animation to play during pause (if not using parent)
+	 * Only used when bUseParentIdle is false
+	 */
+	UPROPERTY(EditAnywhere, Category = "Pause", meta = (EditCondition = "!bUseParentIdle"))
+	TObjectPtr<UAnimMontage> CustomIdleMontage;
+
+	/** Blend time for pause animation */
+	UPROPERTY(EditAnywhere, Category = "Pause", meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	float PauseBlendTime = 0.3f;
+
+public:
+	virtual TSharedPtr<FWorkspotIterator> CreateIterator(FWorkspotContext& Context) const override;
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+#endif
+};
+
 //////////////////////////////////////////////////////////////////////////
 // Container Nodes
 //////////////////////////////////////////////////////////////////////////
 
 /**
  * Sequence - Plays entries in order
+ * ⭐ Provides idle animation context for child entries
  */
 UCLASS(DisplayName = "Sequence")
 class WORKSPOT_API UWorkspotSequence : public UWorkspotEntry
@@ -170,6 +215,27 @@ public:
 	/** Maximum number of loops (if not infinite) */
 	UPROPERTY(EditAnywhere, Category = "Sequence", meta = (EditCondition = "!bLoopInfinitely", ClampMin = "1"))
 	int32 MaxLoops = 1;
+
+	//////////////////////////////////////////////////////////////////////////
+	// ⭐ Idle Animation Context (2077 Feature)
+	//////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Idle loop animation (optional)
+	 * This animation plays during gaps between child entries:
+	 * - When Pause entries are active
+	 * - When child entries have no animation
+	 * - Between loop iterations (if bLoopInfinitely is true)
+	 *
+	 * Example: A "sit" sequence might have IdleLoopMontage = "sit_idle_loop"
+	 * So between eating and drinking animations, the character continues sitting idle
+	 */
+	UPROPERTY(EditAnywhere, Category = "Idle Context", meta = (DisplayName = "Idle Loop Animation"))
+	TObjectPtr<UAnimMontage> IdleLoopMontage;
+
+	/** Blend time when transitioning to/from idle loop */
+	UPROPERTY(EditAnywhere, Category = "Idle Context", meta = (ClampMin = "0.0", ClampMax = "2.0", EditCondition = "IdleLoopMontage != nullptr"))
+	float IdleLoopBlendTime = 0.3f;
 
 public:
 	virtual TSharedPtr<FWorkspotIterator> CreateIterator(FWorkspotContext& Context) const override;

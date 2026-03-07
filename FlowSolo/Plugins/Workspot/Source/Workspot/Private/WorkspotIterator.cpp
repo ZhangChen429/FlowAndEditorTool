@@ -152,7 +152,79 @@ void FExitAnimIterator::Reset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FSequenceIterator
+// FPauseIterator (⭐ 2077 Feature)
+//////////////////////////////////////////////////////////////////////////
+
+FPauseIterator::FPauseIterator(const UWorkspotPause* InPause)
+	: Pause(InPause)
+	, ActualPauseDuration(0.0f)
+	, bHasPlayed(false)
+{
+}
+
+bool FPauseIterator::Next(FWorkspotContext& Context)
+{
+	if (bHasPlayed || !Pause)
+	{
+		return false;
+	}
+
+	// Generate random pause duration
+	ActualPauseDuration = FMath::FRandRange(Pause->PauseDuration.X, Pause->PauseDuration.Y);
+	bHasPlayed = true;
+
+	UE_LOG(LogWorkspot, Log, TEXT("  ⏸️  PauseIterator::Next - Pausing for %.2f seconds (UseParentIdle: %s)"),
+		ActualPauseDuration,
+		Pause->bUseParentIdle ? TEXT("YES") : TEXT("NO"));
+
+	return true;
+}
+
+bool FPauseIterator::GetData(FWorkspotEntryData& OutData) const
+{
+	if (!bHasPlayed || !Pause)
+	{
+		return false;
+	}
+
+	// ⭐ Core 2077 feature: If using parent idle, return NO animation
+	// This signals the parent Sequence to inject its IdleLoopMontage
+	if (Pause->bUseParentIdle)
+	{
+		OutData.AnimMontage = nullptr;  // ← Triggers idle injection!
+		OutData.IdleAnim = Pause->IdleAnim;
+	}
+	else
+	{
+		// Use custom idle animation
+		OutData.AnimMontage = Pause->CustomIdleMontage;
+		OutData.IdleAnim = Pause->IdleAnim;
+	}
+
+	OutData.BlendInTime = Pause->PauseBlendTime;
+	OutData.BlendOutTime = Pause->PauseBlendTime;
+	OutData.bIsValid = true;
+
+	return true;
+}
+
+void FPauseIterator::Reset()
+{
+	bHasPlayed = false;
+	ActualPauseDuration = 0.0f;
+}
+
+FString FPauseIterator::GetDetailString() const
+{
+	if (bHasPlayed)
+	{
+		return FString::Printf(TEXT("%.1fs"), ActualPauseDuration);
+	}
+	return TEXT("[Pending]");
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FSequenceIterator (⭐ Enhanced with Idle Context)
 //////////////////////////////////////////////////////////////////////////
 
 FSequenceIterator::FSequenceIterator(const UWorkspotSequence* InSequence)
@@ -160,6 +232,7 @@ FSequenceIterator::FSequenceIterator(const UWorkspotSequence* InSequence)
 	, CurrentIndex(-1)  // 初始化为-1，第一次++变成0
 	, ChildIterator(nullptr)
 	, LoopCount(0)
+	, bPlayingIdleLoop(false)  // ⭐ Initialize idle state
 {
 }
 
@@ -168,6 +241,13 @@ bool FSequenceIterator::Next(FWorkspotContext& Context)
 	if (!Sequence || Sequence->Entries.Num() == 0)
 	{
 		return false;
+	}
+
+	// ⭐ If currently playing idle loop, return it first
+	if (bPlayingIdleLoop)
+	{
+		bPlayingIdleLoop = false;
+		return true;  // Idle data is already in IdleLoopData
 	}
 
 	// Try to advance current child iterator
@@ -184,14 +264,32 @@ bool FSequenceIterator::Next(FWorkspotContext& Context)
 	{
 		if (Sequence->bLoopInfinitely || LoopCount < Sequence->MaxLoops - 1)
 		{
-			// Loop back to beginning
-			CurrentIndex = -1;  // 重置为-1，下次++变成0
+			// ⭐ Before looping, play idle animation if configured
+			if (Sequence->IdleLoopMontage && Sequence->bLoopInfinitely)
+			{
+				UE_LOG(LogWorkspot, Log, TEXT("  📦 SequenceIterator - Loop %d complete, playing idle loop before restart"),
+					LoopCount + 1);
+
+				PrepareIdleLoopData();
+				bPlayingIdleLoop = true;
+
+				// Reset for next loop
+				CurrentIndex = -1;
+				LoopCount++;
+				ChildIterator.Reset();
+
+				return true;  // Return idle animation this iteration
+			}
+
+			// No idle animation, directly restart
+			CurrentIndex = -1;
 			LoopCount++;
+			ChildIterator.Reset();
 
 			UE_LOG(LogWorkspot, Log, TEXT("  📦 SequenceIterator - Loop %d/%d, restarting from entry 0"),
 				LoopCount + 1, Sequence->MaxLoops);
 
-			// 递归调用以开始新的循环
+			// Recursively call to start new loop
 			return Next(Context);
 		}
 		else
@@ -225,10 +323,35 @@ bool FSequenceIterator::Next(FWorkspotContext& Context)
 
 bool FSequenceIterator::GetData(FWorkspotEntryData& OutData) const
 {
+	// ⭐ If playing idle loop, return idle data
+	if (bPlayingIdleLoop)
+	{
+		OutData = IdleLoopData;
+		return true;
+	}
+
+	// Get data from child iterator
 	if (ChildIterator.IsValid())
 	{
-		return ChildIterator->GetData(OutData);
+		bool bHasData = ChildIterator->GetData(OutData);
+
+		// ⭐ 2077 Core Feature: Inject parent's idle animation if child has none
+		if (bHasData && ShouldInjectIdleForChild(OutData))
+		{
+			UE_LOG(LogWorkspot, Log, TEXT("  📦 SequenceIterator - Injecting idle loop for child with no animation"));
+
+			OutData.AnimMontage = Sequence->IdleLoopMontage;
+			OutData.BlendInTime = Sequence->IdleLoopBlendTime;
+			OutData.BlendOutTime = Sequence->IdleLoopBlendTime;
+			OutData.bIsValid = true;
+
+			// Keep the child's IdleAnim name
+			// (so the system knows which posture context we're in)
+		}
+
+		return bHasData;
 	}
+
 	return false;
 }
 
@@ -237,6 +360,8 @@ void FSequenceIterator::Reset()
 	CurrentIndex = -1;  // 重置为-1
 	LoopCount = 0;
 	ChildIterator.Reset();
+	bPlayingIdleLoop = false;  // ⭐ Reset idle state
+	IdleLoopData = FWorkspotEntryData();
 }
 
 bool FSequenceIterator::HasNext() const
@@ -282,6 +407,26 @@ FString FSequenceIterator::GetDetailString() const
 	}
 
 	return TEXT("[Initializing]");
+}
+
+void FSequenceIterator::PrepareIdleLoopData()
+{
+	IdleLoopData.AnimMontage = Sequence->IdleLoopMontage;
+	IdleLoopData.IdleAnim = Sequence->IdleAnim;
+	IdleLoopData.BlendInTime = Sequence->IdleLoopBlendTime;
+	IdleLoopData.BlendOutTime = Sequence->IdleLoopBlendTime;
+	IdleLoopData.bIsValid = true;
+}
+
+bool FSequenceIterator::ShouldInjectIdleForChild(const FWorkspotEntryData& ChildData) const
+{
+	// Inject parent's idle if:
+	// 1. Sequence has IdleLoopMontage configured
+	// 2. Child has no animation (nullptr)
+	// 3. Child data is otherwise valid
+	return Sequence->IdleLoopMontage != nullptr
+		&& ChildData.AnimMontage == nullptr
+		&& ChildData.bIsValid;
 }
 
 //////////////////////////////////////////////////////////////////////////
