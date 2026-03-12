@@ -1,0 +1,35 @@
+{
+  "atoms": [
+    {
+      "id": "hanako_sit",
+      "type": "MoveTo",
+      "actor": "Hanako",
+      "target": "bar_counter"
+    },
+    {
+      "id": "hanako_wave",
+      "type": "Gesture",
+      "actor": "Hanako",
+      "animation": "wave_dismiss"
+    },
+    {
+      "id": "guard_leave",
+      "type": "MoveTo",
+      "actor": "Guard",
+      "target": "exit"
+    },
+    {
+      "id": "hanako_speak",
+      "type": "Speak",
+      "actor": "Hanako",
+      "content": "你可以安心",
+      "tone": "reassuring"
+    }
+  ],
+  "relations": [
+    "hanako_sit then hanako_wave",
+    "hanako_wave then guard_leave",
+    "guard_leave then hanako_speak"
+  ],
+  "tempo": "slow"
+}

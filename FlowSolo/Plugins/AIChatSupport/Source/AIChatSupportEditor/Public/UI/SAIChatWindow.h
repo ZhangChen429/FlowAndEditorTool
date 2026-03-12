@@ -93,6 +93,8 @@ private:
 
 	/** 是否正在加载 */
 	bool bIsLoading;
+	
+	bool HandleSlashCommand(const FString& MessageContent);
 
 	/** 通知项 */
 	TSharedPtr<SNotificationItem> ActiveNotification;

@@ -1,0 +1,88 @@
+{
+  "name": "narrative_compiler",
+  "description": "将导演的自然语言叙事描述转换为三层结构化格式（语义层 → 约束层 → 时序层）",
+  "version": "2.0.0",
+  "architecture": "three_layer",
+  "trigger": {
+    "type": "prefix",
+    "patterns": [
+      "我是导演策划：",
+      "我是导演策划:"
+    ]
+  },
+  "layers": {
+    "semantic": {
+      "description": "语义层：定义发生什么",
+      "fields": ["goal", "participants", "atoms"]
+    },
+    "constraints": {
+      "description": "约束层：定义动作之间的关系",
+      "fields": ["ordering_constraints", "sync_constraints", "interrupt_constraints"]
+    },
+    "timing": {
+      "description": "时序层：定义时长和节奏",
+      "fields": ["duration_sources", "tempo_modifiers"]
+    }
+  },
+  "atom_types": [
+    "Speak",
+    "MoveTo",
+    "Gesture",
+    "LookAt",
+    "Wait",
+    "Signal"
+  ],
+  "constraint_types": {
+    "ordering": [
+      "finish_to_start",
+      "start_to_start",
+      "join",
+      "join_after_stable",
+      "signal_wait",
+      "parallel"
+    ],
+    "sync": [
+      "wait_all",
+      "wait_any",
+      "wait_stable"
+    ]
+  },
+  "duration_modes": [
+    "resource",
+    "animation",
+    "estimated",
+    "fixed"
+  ],
+  "tempo_styles": [
+    "fast",
+    "medium",
+    "slow",
+    "slow_deliberate",
+    "urgent"
+  ],
+  "overlap_preferences": [
+    "high",
+    "medium",
+    "low",
+    "none"
+  ],
+  "examples": [
+    {
+      "input": "我是导演策划：Hanako 请 V 坐下，同时自顾自喝一口酒",
+      "description": "并行动作：说话的同时喝酒"
+    },
+    {
+      "input": "我是导演策划：等 Hanako 和 V 都坐好后，开始正式对话",
+      "description": "等待汇合：两人都稳定后才开始"
+    },
+    {
+      "input": "我是导演策划：V 拔枪，Hanako 立刻站起来后退，紧张气氛",
+      "description": "快节奏串行：紧张的连续动作"
+    }
+  ],
+  "output": {
+    "type": "json",
+    "format": "three_layer",
+    "save_to": "F:\\Data\\UE_Project\\FlowSolo\\FlowAndEditorTool\\Narratives\\narrative_{timestamp}.json"
+  }
+}

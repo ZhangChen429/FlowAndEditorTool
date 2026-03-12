@@ -1,0 +1,86 @@
+{
+  "semantic": {
+    "goal": "hanako_dismiss_v_politely",
+    "participants": ["Hanako", "V", "Guard"],
+    "atoms": [
+      {
+        "id": "hanako_sit",
+        "type": "MoveTo",
+        "actor": "Hanako",
+        "target": "table"
+      },
+      {
+        "id": "hanako_wave",
+        "type": "Gesture",
+        "actor": "Hanako",
+        "animation": "wave_dismiss"
+      },
+      {
+        "id": "v_leave",
+        "type": "MoveTo",
+        "actor": "V",
+        "target": "exit"
+      },
+      {
+        "id": "hanako_speak",
+        "type": "Speak",
+        "actor": "Hanako",
+        "content": "你帮帮V先生",
+        "tone": "polite"
+      }
+    ]
+  },
+  "constraints": {
+    "ordering_constraints": [
+      {
+        "type": "finish_to_start",
+        "from": "hanako_sit",
+        "to": "hanako_wave",
+        "reason": "Hanako 先坐下再摆手"
+      },
+      {
+        "type": "finish_to_start",
+        "from": "hanako_wave",
+        "to": "v_leave",
+        "reason": "摆手示意后 V 才离开"
+      },
+      {
+        "type": "start_to_start",
+        "from": "v_leave",
+        "to": "hanako_speak",
+        "reason": "V 开始离开时 Hanako 对守卫说话，可以重叠"
+      }
+    ],
+    "sync_constraints": [],
+    "interrupt_constraints": []
+  },
+  "timing": {
+    "duration_sources": [
+      {
+        "atom_id": "hanako_sit",
+        "mode": "animation",
+        "hint": 2.5
+      },
+      {
+        "atom_id": "hanako_wave",
+        "mode": "animation",
+        "hint": 1.2
+      },
+      {
+        "atom_id": "v_leave",
+        "mode": "animation",
+        "hint": 3.5
+      },
+      {
+        "atom_id": "hanako_speak",
+        "mode": "resource",
+        "hint": 2.8
+      }
+    ],
+    "tempo_modifiers": {
+      "style": "slow",
+      "pause_scale": 1.3,
+      "overlap_preference": "medium"
+    }
+  }
+}

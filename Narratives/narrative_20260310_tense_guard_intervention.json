@@ -1,0 +1,102 @@
+{
+  "semantic": {
+    "goal": "hanako_dismiss_v_with_guard_intervention",
+    "participants": ["Hanako", "V", "Guard"],
+    "atoms": [
+      {
+        "id": "hanako_sit",
+        "type": "MoveTo",
+        "actor": "Hanako",
+        "target": "table"
+      },
+      {
+        "id": "hanako_wave",
+        "type": "Gesture",
+        "actor": "Hanako",
+        "animation": "wave_dismiss"
+      },
+      {
+        "id": "guard_step_forward",
+        "type": "MoveTo",
+        "actor": "Guard",
+        "target": "between_v_and_hanako"
+      },
+      {
+        "id": "guard_block",
+        "type": "Gesture",
+        "actor": "Guard",
+        "animation": "block_stance"
+      },
+      {
+        "id": "v_stop",
+        "type": "MoveTo",
+        "actor": "V",
+        "target": "stopped_position"
+      }
+    ]
+  },
+  "constraints": {
+    "ordering_constraints": [
+      {
+        "type": "finish_to_start",
+        "from": "hanako_sit",
+        "to": "hanako_wave",
+        "reason": "Hanako 已经坐着，然后摆手"
+      },
+      {
+        "type": "parallel",
+        "from": "hanako_wave",
+        "to": "guard_step_forward",
+        "reason": "Hanako 摆手的同时守卫上前"
+      },
+      {
+        "type": "finish_to_start",
+        "from": "guard_step_forward",
+        "to": "guard_block",
+        "reason": "守卫上前后摆出阻挡姿势"
+      },
+      {
+        "type": "start_to_start",
+        "from": "guard_block",
+        "to": "v_stop",
+        "reason": "守卫阻挡时 V 停下"
+      }
+    ],
+    "sync_constraints": [],
+    "interrupt_constraints": []
+  },
+  "timing": {
+    "duration_sources": [
+      {
+        "atom_id": "hanako_sit",
+        "mode": "fixed",
+        "hint": 0.1
+      },
+      {
+        "atom_id": "hanako_wave",
+        "mode": "animation",
+        "hint": 1.0
+      },
+      {
+        "atom_id": "guard_step_forward",
+        "mode": "animation",
+        "hint": 1.2
+      },
+      {
+        "atom_id": "guard_block",
+        "mode": "animation",
+        "hint": 0.8
+      },
+      {
+        "atom_id": "v_stop",
+        "mode": "animation",
+        "hint": 0.6
+      }
+    ],
+    "tempo_modifiers": {
+      "style": "urgent",
+      "pause_scale": 0.6,
+      "overlap_preference": "high"
+    }
+  }
+}

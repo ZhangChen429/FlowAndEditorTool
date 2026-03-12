@@ -236,3 +236,178 @@ TArray<FString> UAIChatFileUtils::GetCommonUEPaths()
 
 	return CommonPaths;
 }
+
+bool UAIChatFileUtils::FindProjectFilesByGlob(const FString& GlobPattern, int32 MaxResults, TArray<FString>& OutFiles,
+	FString& OutError)
+{
+	OutFiles.Empty();
+	OutError.Empty();
+
+	const FString ProjectRoot = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+	FString Pattern = GlobPattern.IsEmpty() ? TEXT("*.cpp") : GlobPattern;
+	int32 Limit = FMath::Clamp(MaxResults, 1, 500);
+
+	TArray<FString> Found;
+	IFileManager::Get().FindFilesRecursive(Found, *ProjectRoot, *Pattern, true, false, true);
+
+	// 过滤中间目录
+	for (const FString& File : Found)
+	{
+		FString Std = File;
+		FPaths::MakeStandardFilename(Std);
+
+		if (Std.Contains(TEXT("/Intermediate/")) || Std.Contains(TEXT("/Binaries/")) || Std.Contains(TEXT("/Saved/")))
+		{
+			continue;
+		}
+
+		OutFiles.Add(Std);
+		if (OutFiles.Num() >= Limit) break;
+	}
+
+	if (OutFiles.Num() == 0)
+	{
+		OutError = FString::Printf(TEXT("No files found for pattern: %s"), *Pattern);
+		return false;
+	}
+	return true;
+}
+
+bool UAIChatFileUtils::ReadProjectTextFile(const FString& InPath, int32 StartLine, int32 MaxLines, FString& OutText,
+	FString& OutError)
+{
+	OutText.Empty();
+	OutError.Empty();
+
+	FString FullPath;
+	if (!ResolveAndValidatePathInProject(InPath, FullPath, true))
+	{
+		OutError = TEXT("Path invalid / out of project / file not exists");
+		return false;
+	}
+
+	TArray<FString> Lines;
+	if (!FFileHelper::LoadFileToStringArray(Lines, *FullPath))
+	{
+		OutError = TEXT("Failed to read file as text");
+		return false;
+	}
+
+	const int32 Begin = FMath::Max(1, StartLine);
+	const int32 Count = FMath::Clamp(MaxLines, 1, 800);
+	const int32 End = FMath::Min(Begin + Count - 1, Lines.Num());
+
+	OutText += FString::Printf(TEXT("FILE: %s\nRANGE: %d-%d / %d\n\n"), *FullPath, Begin, End, Lines.Num());
+	for (int32 L = Begin; L <= End; ++L)
+	{
+		OutText += FString::Printf(TEXT("%5d | %s\n"), L, *Lines[L - 1]);
+	}
+
+	if (End < Lines.Num())
+	{
+		OutText += TEXT("\n...TRUNCATED...\n");
+	}
+	return true;
+}
+
+bool UAIChatFileUtils::GrepProjectFiles(const FString& Keyword, const FString& FileGlob, int32 MaxHits,
+	FString& OutText, FString& OutError)
+{
+	OutText.Empty();
+	OutError.Empty();
+
+	if (Keyword.IsEmpty())
+	{
+		OutError = TEXT("Keyword is empty");
+		return false;
+	}
+
+	TArray<FString> Files;
+	FString FindErr;
+	if (!FindProjectFilesByGlob(FileGlob.IsEmpty() ? TEXT("*.cpp") : FileGlob, 1000, Files, FindErr))
+	{
+		OutError = FindErr;
+		return false;
+	}
+
+	const int32 HitLimit = FMath::Clamp(MaxHits, 1, 500);
+	int32 Hits = 0;
+
+	OutText += FString::Printf(TEXT("GREP keyword='%s' glob='%s'\n\n"), *Keyword, *(FileGlob.IsEmpty() ? TEXT("*.cpp") : FileGlob));
+
+	for (const FString& File : Files)
+	{
+		if (Hits >= HitLimit) break;
+
+		TArray<FString> Lines;
+		if (!FFileHelper::LoadFileToStringArray(Lines, *File)) continue;
+
+		for (int32 i = 0; i < Lines.Num(); ++i)
+		{
+			if (Lines[i].Contains(Keyword, ESearchCase::IgnoreCase))
+			{
+				OutText += FString::Printf(TEXT("%s:%d | %s\n"), *File, i + 1, *Lines[i]);
+				++Hits;
+				if (Hits >= HitLimit) break;
+			}
+		}
+	}
+
+	if (Hits == 0)
+	{
+		OutError = TEXT("No matches");
+		return false;
+	}
+
+	if (Hits >= HitLimit)
+	{
+		OutText += TEXT("\n...HIT LIMIT REACHED...\n");
+	}
+	return true;
+}
+
+bool UAIChatFileUtils::ResolveAndValidatePathInProject(const FString& InPath, FString& OutFullPath, bool bMustBeFile)
+{
+	OutFullPath = InPath;
+
+	// 支持 /Game/ /Engine/ /Plugins/ 虚拟路径
+	if (InPath.StartsWith(TEXT("/")))
+	{
+		OutFullPath = ConvertToPhysicalPath(InPath);
+	}
+
+	if (FPaths::IsRelative(OutFullPath))
+	{
+		OutFullPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), OutFullPath);
+	}
+	else
+	{
+		OutFullPath = FPaths::ConvertRelativePathToFull(OutFullPath);
+	}
+
+	FPaths::CollapseRelativeDirectories(OutFullPath);
+	FPaths::MakeStandardFilename(OutFullPath);
+
+	if (!IsPathUnderProject(OutFullPath))
+	{
+		return false;
+	}
+
+	if (bMustBeFile)
+	{
+		return IFileManager::Get().FileExists(*OutFullPath);
+	}
+
+	return IFileManager::Get().DirectoryExists(*OutFullPath) || IFileManager::Get().FileExists(*OutFullPath);
+}
+
+bool UAIChatFileUtils::IsPathUnderProject(const FString& FullPath)
+{
+	FString StdFull = FullPath;
+	FPaths::MakeStandardFilename(StdFull);
+
+	FString ProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+	FPaths::MakeStandardFilename(ProjectDir);
+
+	return StdFull.StartsWith(ProjectDir);
+}

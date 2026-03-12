@@ -109,6 +109,105 @@ SAIChatWindow::~SAIChatWindow()
 	ClearNotification();
 }
 
+bool SAIChatWindow::HandleSlashCommand(const FString& MessageContent)
+{
+	  TArray<FString> Args;
+        MessageContent.ParseIntoArrayWS(Args);
+
+        if (Args.Num() == 0) return false;
+
+        const FString Cmd = Args[0].ToLower();
+
+        // 兼容你已有功能
+        if (Cmd == TEXT("/browse"))
+        {
+                FString FolderPath = Args.Num() > 1 ? Args[1] : TEXT("/Game/");
+                TArray<FAIChatFileInfo> Files;
+                if (UAIChatFileUtils::ListFilesInFolder(FolderPath, Files))
+                {
+                        AddMessageToList(TEXT("system"), UAIChatFileUtils::FormatFileListForAI(Files, FolderPath));
+                }
+                else
+                {
+                        AddMessageToList(TEXT("system"), FString::Printf(TEXT("❌ Browse failed: %s"), *FolderPath));
+                }
+                return true;
+        }
+
+        // /files *.cpp [limit]
+        if (Cmd == TEXT("/files"))
+        {
+                const FString Pattern = Args.Num() > 1 ? Args[1] : TEXT("*.cpp");
+                const int32 Limit = Args.Num() > 2 ? FCString::Atoi(*Args[2]) : 100;
+
+                TArray<FString> Files;
+                FString Err;
+                if (UAIChatFileUtils::FindProjectFilesByGlob(Pattern, Limit, Files, Err))
+                {
+                        FString Out = FString::Printf(TEXT("FILES (%d):\n"), Files.Num());
+                        for (const FString& F : Files) Out += FString::Printf(TEXT("- %s\n"), *F);
+                        AddMessageToList(TEXT("system"), Out);
+                }
+                else
+                {
+                        AddMessageToList(TEXT("system"), FString::Printf(TEXT("❌ /files failed: %s"), *Err));
+                }
+                return true;
+        }
+
+        // /read <path> [start] [count]
+        if (Cmd == TEXT("/read"))
+        {
+                if (Args.Num() < 2)
+                {
+                        AddMessageToList(TEXT("system"), TEXT("用法: /read <path> [startLine] [lineCount]"));
+                        return true;
+                }
+
+                const FString Path = Args[1];
+                const int32 Start = Args.Num() > 2 ? FMath::Max(1, FCString::Atoi(*Args[2])) : 1;
+                const int32 Count = Args.Num() > 3 ? FMath::Clamp(FCString::Atoi(*Args[3]), 1, 400) : 200;
+
+                FString Text, Err;
+                if (UAIChatFileUtils::ReadProjectTextFile(Path, Start, Count, Text, Err))
+                {
+                        AddMessageToList(TEXT("system"), Text);
+                }
+                else
+                {
+                        AddMessageToList(TEXT("system"), FString::Printf(TEXT("❌ /read failed: %s"), *Err));
+                }
+                return true;
+        }
+
+        // /grep <keyword> [glob] [maxHits]
+        if (Cmd == TEXT("/grep"))
+        {
+                if (Args.Num() < 2)
+                {
+                        AddMessageToList(TEXT("system"), TEXT("用法: /grep <keyword> [glob] [maxHits]"));
+                        return true;
+                }
+
+                const FString Keyword = Args[1];
+                const FString Glob = Args.Num() > 2 ? Args[2] : TEXT("*.{h,cpp}");
+                const int32 MaxHits = Args.Num() > 3 ? FMath::Clamp(FCString::Atoi(*Args[3]), 1, 200) : 80;
+
+                FString Text, Err;
+                if (UAIChatFileUtils::GrepProjectFiles(Keyword, Glob, MaxHits, Text, Err))
+                {
+                        AddMessageToList(TEXT("system"), Text);
+                }
+                else
+                {
+                        AddMessageToList(TEXT("system"), FString::Printf(TEXT("❌ /grep failed: %s"), *Err));
+                }
+                return true;
+        }
+
+        return false;
+}
+
 TSharedRef<SWidget> SAIChatWindow::CreateMessageListPanel()
 {
 	return SNew(SBorder)

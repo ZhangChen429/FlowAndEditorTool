@@ -36,36 +36,30 @@ class AICHATSUPPORTEDITOR_API UAIChatFileUtils : public UBlueprintFunctionLibrar
 	GENERATED_BODY()
 
 public:
-	/**
-	 * 列出指定文件夹下的所有文件和子文件夹（不递归）
-	 * @param FolderPath - 文件夹路径（支持 UE 虚拟路径如 /Game/ 或物理路径）
-	 * @param OutFiles - 输出文件列表
-	 * @return 是否成功
-	 */
+	
 	UFUNCTION(BlueprintCallable, Category = "AI Chat | File Utils")
 	static bool ListFilesInFolder(const FString& FolderPath, TArray<FAIChatFileInfo>& OutFiles);
-
-	/**
-	 * 格式化文件列表为可读文本（供 AI 查看）
-	 * @param Files - 文件列表
-	 * @param FolderPath - 文件夹路径（显示在开头）
-	 * @return 格式化的文本
-	 */
+	
 	UFUNCTION(BlueprintCallable, Category = "AI Chat | File Utils")
 	static FString FormatFileListForAI(const TArray<FAIChatFileInfo>& Files, const FString& FolderPath);
-
-	/**
-	 *
-	 * 转换 UE 虚拟路径到物理路径
-	 * @param VirtualPath - 虚拟路径（如 /Game/MyFolder）
-	 * @return 物理路径（如 F:/MyProject/Content/MyFolder）
-	 */
+	
 	UFUNCTION(BlueprintCallable, Category = "AI Chat | File Utils")
 	static FString ConvertToPhysicalPath(const FString& VirtualPath);
-
-	/**
-	 * 获取常用的 UE 路径列表（快捷访问）
-	 */
+	
 	UFUNCTION(BlueprintCallable, Category = "AI Chat | File Utils")
 	static TArray<FString> GetCommonUEPaths();
+	
+	static bool FindProjectFilesByGlob(const FString& GlobPattern, int32 MaxResults, TArray<FString>& OutFiles, FString& OutError);
+
+	/** Read: 读取文本文件指定行区间（1-based） */
+	static bool ReadProjectTextFile(const FString& InPath, int32 StartLine, int32 MaxLines, FString& OutText, FString& OutError);
+
+	/** Grep: 在项目文件中按关键字搜索（大小写不敏感） */
+	static bool GrepProjectFiles(const FString& Keyword, const FString& FileGlob, int32 MaxHits, FString& OutText, FString& OutError);
+	
+private:
+	static bool ResolveAndValidatePathInProject(const FString& InPath, FString& OutFullPath, bool bMustBeFile);
+	static bool IsPathUnderProject(const FString& FullPath);
+
+	
 };
